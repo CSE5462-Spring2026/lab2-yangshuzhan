@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
     printf ("I am sending '%s'", lineFromFile);
     printf("生成的 JSON 是:\n%s\n", buffer);
     printf ("the length of the string is %lu bytes\n", strlen(lineFromFile));
-    sendStuff(lineFromFile, sd, server_address);
+    sendStuff(buffer, sd, server_address);
   }
 
 
