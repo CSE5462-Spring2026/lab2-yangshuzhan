@@ -13,57 +13,48 @@
 
 void format_message(char *json) {
     printf("************************************************\n");
-    printf("%-20s %s\n", "Key", "Value"); // 表头改成通用的 Key/Value
+    printf("%-20s %s\n", "Key", "Value");
     printf("************************************************\n");
 
     char *p = json;
-    
-    // 循环查找每一个 Key
+
+    // 1. 先找到第一个 Key 的开始引号
+    // 只要能找到引号，就说明还有数据
     while ((p = strchr(p, '"')) != NULL) {
-        // 1. 提取 Key
-        char *key_start = p + 1;
-        char *key_end = strchr(key_start, '"');
-        if (!key_end) break; // 格式错误
+        
+        // --- 解析 Key ---
+        char *key_start = p + 1; // 跳过 Key 的开头引号
+        char *key_end = strchr(key_start, '"'); // 找 Key 的结尾引号
+        if (!key_end) break; // 格式坏了，退出
 
         int key_len = key_end - key_start;
+
+        // --- 解析 Value ---
+        // 从 Key 的结尾往后找冒号
+        char *colon = strchr(key_end, ':');
+        if (!colon) break;
+
+        // 从冒号往后找 Value 的开头引号
+        char *val_start = strchr(colon, '"');
+        if (!val_start) break;
         
-        // 移动指针去找冒号
-        p = strchr(key_end, ':');
-        if (!p) break;
-
-        // 2. 找 Value 的起点（跳过冒号和空格）
-        char *val_start = p + 1;
-        while (*val_start && isspace(*val_start)) val_start++;
-
-        char *val_end = NULL;
+        val_start++; // 跳过 Value 的开头引号
         
-        // 3. 判断 Value 类型
-        if (*val_start == '"') {
-            // Case A: Value 是字符串 (例如 "DAVE")
-            val_start++; // 跳过开头的引号
-            val_end = strchr(val_start, '"'); // 找结尾的引号
-        } else {
-            // Case B: Value 是数字或布尔值 (例如 1228, true)
-            // 找逗号 ',' 或者大括号 '}' 作为结尾
-            val_end = val_start;
-            while (*val_end && *val_end != ',' && *val_end != '}') {
-                val_end++;
-            }
-        }
+        char *val_end = strchr(val_start, '"'); // 找 Value 的结尾引号
+        if (!val_end) break;
 
-        if (val_end) {
-            int val_len = val_end - val_start;
-            
-            // 4. 打印结果
-            // "%.*s" 允许我们打印指定长度的字符串，不需要手动加 \0
-            printf("%-20.*s %.*s\n", key_len, key_start, val_len, val_start);
-            
-            // 指针移动到当前 Value 后面，准备下一轮循环
-            p = val_end;
-        } else {
-            break; 
-        }
+        int val_len = val_end - val_start;
+
+        // --- 打印 ---
+        printf("%-20.*s %.*s\n", key_len, key_start, val_len, val_start);
+
+        // --- 🔴 关键修复在这里 🔴 ---
+        // 之前的 bug 是 p = val_end; 导致下一次 strchr 又找到了同一个引号
+        // 现在我们将 p 指向 val_end 的下一个字符 (+1)
+        // 这样它就会跳过当前的 Value，去寻找下一个 Key 的引号了
+        p = val_end + 1;
     }
+
     printf("************************************************\n");
 }
 int main(){
