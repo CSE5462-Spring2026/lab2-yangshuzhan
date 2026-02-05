@@ -12,40 +12,100 @@ void makeSocket(int *sd, char *argv[], struct sockaddr_in *server_address);
 FILE *  openFile();
 char *rtrim(char *s);
 
-/**********************************************************************/
-/* This is the first program in the series. It is meant to teach 1    */
-/* things. First, you will learn/recall how to sendto/recvfrom with   */
-/* with datagrams.                                                    */
-/**********************************************************************/
-char* keys[]={"File_Name","File_Size","File_Type","Date_Created","Description"};
-typedef struct{
-  char File_Name[50];
-  char File_Size[50];
- 	char File_Type[50];
- 	char Date_Created[50];
- 	char Description[100];
-}json;
-json linetojson(char *line){
-  json currentFile;
-  sscanf(line, "File_Name:\"%[^\"]\" File_Size:%s File_Type:%s Date_Created:%s Description:%s",
-     currentFile.File_Name,currentFile.File_Size, currentFile.File_Type,currentFile.Date_Created,currentFile.Description);
-  return currentFile;
+#define MAX_FIELDS 20
+#define MAX_LEN 100
+
+typedef struct {
+    char keys[MAX_FIELDS][MAX_LEN];   // 存字段名
+    char values[MAX_FIELDS][MAX_LEN]; // 存字段值
+    int count;                        // 记录存了多少个字段
+} json;
+
+/* 2. 保持函数名 linetojson
+    功能：解析 "Key:Value Key2:Value2" 格式的字符串
+*/
+json linetojson(char *line) {
+    json currentJson;
+    currentJson.count = 0;
+
+    // 因为 strtok 会修改原字符串，为了安全我们拷贝一份
+    char tempLine[1024];
+    strncpy(tempLine, line, sizeof(tempLine));
+    tempLine[sizeof(tempLine) - 1] = '\0';
+
+    // 按空格分割每一组 "Key:Value"
+    char *token = strtok(tempLine, " ");
+    
+    while (token != NULL && currentJson.count < MAX_FIELDS) {
+        // 在这一组里找冒号
+        char *colon = strchr(token, ':');
+        
+        if (colon) {
+            *colon = '\0'; // 把冒号变成结束符，切断
+            
+            // 存 Key (冒号左边)
+            strncpy(currentJson.keys[currentJson.count], token, MAX_LEN - 1);
+            
+            // 存 Value (冒号右边)
+            // 简单的处理：如果值里面有引号，可以手动跳过
+            char *valStart = colon + 1;
+            if (*valStart == '"') valStart++; // 跳过开头的引号
+            
+            // 处理结尾的引号 (如果有)
+            char *valEnd = strchr(valStart, '"');
+            if (valEnd) *valEnd = '\0'; 
+
+            strncpy(currentJson.values[currentJson.count], valStart, MAX_LEN - 1);
+            
+            currentJson.count++;
+        }
+        
+        token = strtok(NULL, " ");
+    }
+    
+    return currentJson;
 }
+
+/* 3. 保持函数名 jsontostring
+    功能：把存好的动态 Key-Value 拼成 JSON 格式
+*/
 void jsontostring(json *data, char *buffer) {
-    sprintf(buffer, 
-        "{\n"
-        "  \"File_Name\": \"%s\",\n"
-        "  \"File_Size\": \"%s\",\n"
-        "  \"File_Type\": \"%s\",\n"
-        "  \"Date_Created\": \"%s\",\n"
-        "  \"Description\": \"%s\"\n"
-        "}", 
-        data->File_Name, 
-        data->File_Size, 
-        data->File_Type, 
-        data->Date_Created, 
-        data->Description
-    );
+    strcpy(buffer, "{\n"); // 开始
+
+    char temp[256];
+    
+    for (int i = 0; i < data->count; i++) {
+        // 拼装一行: "Key": "Value"
+        sprintf(temp, "  \"%s\": \"%s\"", data->keys[i], data->values[i]);
+        strcat(buffer, temp);
+
+        // 如果不是最后一行，加逗号
+        if (i < data->count - 1) {
+            strcat(buffer, ",\n");
+        } else {
+            strcat(buffer, "\n");
+        }
+    }
+
+    strcat(buffer, "}"); // 结束
+}
+
+/* 测试用的 Main */
+int main() {
+    char buffer[1024];
+    
+    // 模拟输入：哪怕以后字段变了，或者多了新的字段，这行代码都不用改
+    char *input = "File_Name:\"Lab1.c\" File_Size:2KB New_Field:Test";
+    
+    // 1. Line -> Struct
+    json myData = linetojson(input);
+    
+    // 2. Struct -> JSON String
+    jsontostring(&myData, buffer);
+    
+    printf("生成的 JSON:\n%s\n", buffer);
+
+    return 0;
 }
 int main(int argc, char *argv[])
 {

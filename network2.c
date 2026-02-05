@@ -9,48 +9,61 @@
 #include <time.h>
 #include <unistd.h>
 #include <ctype.h>
-void extract(char *json, char *key_display, char *json_key) {
-    // look for name of key
-    char *key_ptr = strstr(json, json_key);
+
+
+void format_message(char *json) {
+    printf("************************************************\n");
+    printf("%-20s %s\n", "Key", "Value"); // 表头改成通用的 Key/Value
+    printf("************************************************\n");
+
+    char *p = json;
     
-    if (key_ptr) {
-        //look for : after key
-        char *colon_ptr = strchr(key_ptr, ':');
+    // 循环查找每一个 Key
+    while ((p = strchr(p, '"')) != NULL) {
+        // 1. 提取 Key
+        char *key_start = p + 1;
+        char *key_end = strchr(key_start, '"');
+        if (!key_end) break; // 格式错误
+
+        int key_len = key_end - key_start;
         
-        if (colon_ptr) {
-            //look for'"' after :
-            char *val_start = strchr(colon_ptr, '"');
-            
-            if (val_start) {
-                val_start++; 
-                
-                // find last "
-                char *val_end = strchr(val_start, '"');
-                
-                if (val_end) {
-                    int len = val_end - val_start;
-                    // print
-                    printf("%-20s %.*s\n", key_display, len, val_start);
-                    return;
-                }
+        // 移动指针去找冒号
+        p = strchr(key_end, ':');
+        if (!p) break;
+
+        // 2. 找 Value 的起点（跳过冒号和空格）
+        char *val_start = p + 1;
+        while (*val_start && isspace(*val_start)) val_start++;
+
+        char *val_end = NULL;
+        
+        // 3. 判断 Value 类型
+        if (*val_start == '"') {
+            // Case A: Value 是字符串 (例如 "DAVE")
+            val_start++; // 跳过开头的引号
+            val_end = strchr(val_start, '"'); // 找结尾的引号
+        } else {
+            // Case B: Value 是数字或布尔值 (例如 1228, true)
+            // 找逗号 ',' 或者大括号 '}' 作为结尾
+            val_end = val_start;
+            while (*val_end && *val_end != ',' && *val_end != '}') {
+                val_end++;
             }
         }
+
+        if (val_end) {
+            int val_len = val_end - val_start;
+            
+            // 4. 打印结果
+            // "%.*s" 允许我们打印指定长度的字符串，不需要手动加 \0
+            printf("%-20.*s %.*s\n", key_len, key_start, val_len, val_start);
+            
+            // 指针移动到当前 Value 后面，准备下一轮循环
+            p = val_end;
+        } else {
+            break; 
+        }
     }
-    // if not working
-    printf("%-20s (Unknown)\n", key_display);
-}
-
-void format_message(char *buf) {
-    printf("************************************************\n");
-    printf("%-20s %s\n", "Name", "Value");
-    printf("************************************************\n");
-
-    extract(buf, "File Name",    "File_Name");
-    extract(buf, "File Size",    "File_Size");
-    extract(buf, "File Type",    "File_Type");
-    extract(buf, "Date Created", "Date_Created");
-    extract(buf, "Description",  "Description");
-
     printf("************************************************\n");
 }
 int main(){
