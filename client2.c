@@ -90,23 +90,6 @@ void jsontostring(json *data, char *buffer) {
     strcat(buffer, "}"); // 结束
 }
 
-/* 测试用的 Main */
-int main() {
-    char buffer[1024];
-    
-    // 模拟输入：哪怕以后字段变了，或者多了新的字段，这行代码都不用改
-    char *input = "File_Name:\"Lab1.c\" File_Size:2KB New_Field:Test";
-    
-    // 1. Line -> Struct
-    json myData = linetojson(input);
-    
-    // 2. Struct -> JSON String
-    jsontostring(&myData, buffer);
-    
-    printf("生成的 JSON:\n%s\n", buffer);
-
-    return 0;
-}
 int main(int argc, char *argv[])
 {
   int sd; /* the socket descriptor */
