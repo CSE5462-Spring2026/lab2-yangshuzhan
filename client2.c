@@ -32,7 +32,6 @@ json linetojson(char *line){
   return currentFile;
 }
 void jsontostring(json *data, char *buffer) {
-    // 直接把 values 填进模板里，简单明了
     sprintf(buffer, 
         "{\n"
         "  \"File_Name\": \"%s\",\n"
