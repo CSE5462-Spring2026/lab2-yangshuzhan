@@ -16,67 +16,58 @@ char *rtrim(char *s);
 #define MAX_LEN 100
 
 typedef struct {
-    char keys[MAX_FIELDS][MAX_LEN];   // 存字段名
-    char values[MAX_FIELDS][MAX_LEN]; // 存字段值
-    int count;                        // 记录存了多少个字段
+    char keys[MAX_FIELDS][MAX_LEN];   // field names
+    char values[MAX_FIELDS][MAX_LEN]; // 
+    int count;                        // num of fields
 } json;
 
-/* 2. 保持函数名 linetojson
-    功能：解析 "Key:Value Key2:Value2" 格式的字符串
-*/
+//parse string "Key:Value Key2:Value2" 
 json linetojson(char *line) {
     json currentJson;
     currentJson.count = 0;
 
     char *ptr = line;
 
-    // 循环解析直到字符串结束
     while (*ptr != '\0' && currentJson.count < MAX_FIELDS) {
         
-        // 1. 跳过前导空格 (Trim leading spaces)
         while (*ptr == ' ' || *ptr == '\n' || *ptr == '\r') ptr++;
-        if (*ptr == '\0') break; // 如果全是空格，结束
+        if (*ptr == '\0') break; 
 
-        // 2. 找冒号 (Key 的结束)
         char *colon = strchr(ptr, ':');
-        if (!colon) break; // 没找到冒号，格式不对，退出
+        if (!colon) break; 
 
-        // 3. 提取 Key
+        // extract Key
         int keyLen = colon - ptr;
         if (keyLen >= MAX_LEN) keyLen = MAX_LEN - 1;
         strncpy(currentJson.keys[currentJson.count], ptr, keyLen);
         currentJson.keys[currentJson.count][keyLen] = '\0';
 
-        // 4. 定位 Value 的起点
+        // start of value
         char *valStart = colon + 1;
         char *valEnd = NULL;
         int isQuoted = 0;
 
         if (*valStart == '"') {
-            // --- 情况 A: 值被引号包围 (例如 msg:" hello world") ---
+            //like msg:" hello world"
             isQuoted = 1;
-            valStart++; // 跳过开头的引号
-            valEnd = strchr(valStart, '"'); // 找下一个引号
+            valStart++; 
+            valEnd = strchr(valStart, '"');
             
             if (!valEnd) {
-                // 如果没找到结束引号，就读到行尾
                 valEnd = valStart + strlen(valStart);
             }
         } else {
-            // --- 情况 B: 普通值，读到空格为止 (例如 time:1228) ---
-            // 找下一个空格
             valEnd = strchr(valStart, ' ');
-            
-            // 如果没找到空格，说明是最后一个字段 (可能带换行符)
+
             if (!valEnd) {
                 valEnd = valStart + strlen(valStart);
             }
         }
 
-        // 5. 提取 Value
+        // extract Value
         int valLen = valEnd - valStart;
         
-        // 去掉 Value 里的换行符 (针对最后一个字段如 myName:DAVE\n)
+        // get rid of linebreak
         while (valLen > 0 && (valStart[valLen-1] == '\n' || valStart[valLen-1] == '\r')) {
             valLen--;
         }
@@ -85,34 +76,28 @@ json linetojson(char *line) {
         strncpy(currentJson.values[currentJson.count], valStart, valLen);
         currentJson.values[currentJson.count][valLen] = '\0';
 
-        // 6. 成功存入一组
         currentJson.count++;
 
-        // 7. 移动指针，准备下一轮
         if (isQuoted) {
-            ptr = valEnd + 1; // 跳过结束引号
+            ptr = valEnd + 1;
         } else {
-            ptr = valEnd; // 从刚才停下的地方继续
-        }
+            ptr = valEnd; 
     }
 
     return currentJson;
 }
 
-/* 3. 保持函数名 jsontostring
-    功能：把存好的动态 Key-Value 拼成 JSON 格式
-*/
+//format into json
 void jsontostring(json *data, char *buffer) {
-    strcpy(buffer, "{\n"); // 开始
+    strcpy(buffer, "{\n"); // begin
 
     char temp[256];
     
     for (int i = 0; i < data->count; i++) {
-        // 拼装一行: "Key": "Value"
         sprintf(temp, "  \"%s\": \"%s\"", data->keys[i], data->values[i]);
         strcat(buffer, temp);
 
-        // 如果不是最后一行，加逗号
+        // if not last line
         if (i < data->count - 1) {
             strcat(buffer, ",\n");
         } else {
@@ -120,7 +105,7 @@ void jsontostring(json *data, char *buffer) {
         }
     }
 
-    strcat(buffer, "}"); // 结束
+    strcat(buffer, "}"); // end
 }
 
 int main(int argc, char *argv[])

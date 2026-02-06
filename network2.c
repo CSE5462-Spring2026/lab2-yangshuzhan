@@ -18,53 +18,46 @@ void format_message(char *json) {
 
     char *p = json;
 
-    // 循环查找每一个 Key
     while ((p = strchr(p, '"')) != NULL) {
-        // 1. 提取 Key
+        // extract key
         char *key_start = p + 1;
         char *key_end = strchr(key_start, '"');
         if (!key_end) break; 
 
         int key_len = key_end - key_start;
         
-        // 移动指针去找冒号
+        //look for :
         p = strchr(key_end, ':');
         if (!p) break;
 
-        // 2. 找 Value 的起点（跳过冒号和空格）
         char *val_start = p + 1;
         while (*val_start && isspace(*val_start)) val_start++;
 
         char *val_end = NULL;
         
-        // 3. 核心修改：判断 Value 类型
         if (*val_start == '"') {
-            // Case A: Value 是字符串 (例如 "recv")
-            val_start++; // 跳过开头的引号
-            val_end = strchr(val_start, '"'); // 找结尾的引号
+            // if value is number
+            val_start++; 
+            val_end = strchr(val_start, '"'); 
             
             if (val_end) {
-                 // 打印字符串值
+                 // print string
                 printf("%-20.*s %.*s\n", key_len, key_start, (int)(val_end - val_start), val_start);
-                // 准备处理下一个字段：指针跳过当前的结束引号
                 p = val_end + 1;
             }
         } else {
-            // Case B: Value 是数字 (例如 2, 1228)
-            // 数字没有引号，它的结束符是 逗号(,) 或者 花括号(})
+            //if Value is number 
             val_end = val_start;
             while (*val_end && *val_end != ',' && *val_end != '}') {
                 val_end++;
             }
             
-            // 打印数字值
+            // print numbers
             printf("%-20.*s %.*s\n", key_len, key_start, (int)(val_end - val_start), val_start);
             
-            // 准备处理下一个字段：指针直接停在这里即可，循环开头的 strchr 会负责找下一个 Key 的引号
             p = val_end;
         }
 
-        // 安全检查
         if (!val_end) break; 
     }
     printf("************************************************\n");
@@ -85,7 +78,14 @@ int main(){
     int port;
 
     printf("Enter multicast IP port: ");
-    scanf("%31s%d", mcast_ip,&port);
+    int result =scanf("%31s%d", mcast_ip,&port);
+    if (result != 2) {//handel exception
+            printf("Error: Invalid input format.\n");
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF);
+            continue;
+        }
+
     mreq.imr_multiaddr.s_addr = inet_addr(mcast_ip); //multicast address 
     addr.sin_port = htons(port);         //port number
 
