@@ -77,11 +77,12 @@ int main(){
     char mcast_ip[32];
     int port;
 
-    printf("Enter multicast IP port: ");
+    printf("Enter multicast IP+port: ");
     int result =scanf("%31s%d", mcast_ip,&port);
     if (result != 2) {//handel exception
             printf("Error: Invalid input format.\n");
         }
+        else printf("Success: %s:%d\n", mcast_ip, port);
 
     mreq.imr_multiaddr.s_addr = inet_addr(mcast_ip); //multicast address 
     addr.sin_port = htons(port);         //port number
