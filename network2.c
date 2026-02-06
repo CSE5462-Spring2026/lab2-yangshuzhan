@@ -81,9 +81,6 @@ int main(){
     int result =scanf("%31s%d", mcast_ip,&port);
     if (result != 2) {//handel exception
             printf("Error: Invalid input format.\n");
-            int c;
-            while ((c = getchar()) != '\n' && c != EOF);
-            continue;
         }
 
     mreq.imr_multiaddr.s_addr = inet_addr(mcast_ip); //multicast address 

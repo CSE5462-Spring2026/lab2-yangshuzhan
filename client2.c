@@ -81,7 +81,7 @@ json linetojson(char *line) {
         if (isQuoted) {
             ptr = valEnd + 1;
         } else {
-            ptr = valEnd; 
+            ptr = valEnd; }
     }
 
     return currentJson;
