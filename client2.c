@@ -28,41 +28,74 @@ json linetojson(char *line) {
     json currentJson;
     currentJson.count = 0;
 
-    // 因为 strtok 会修改原字符串，为了安全我们拷贝一份
-    char tempLine[1024];
-    strncpy(tempLine, line, sizeof(tempLine));
-    tempLine[sizeof(tempLine) - 1] = '\0';
+    char *ptr = line;
 
-    // 按空格分割每一组 "Key:Value"
-    char *token = strtok(tempLine, " ");
-    
-    while (token != NULL && currentJson.count < MAX_FIELDS) {
-        // 在这一组里找冒号
-        char *colon = strchr(token, ':');
+    // 循环解析直到字符串结束
+    while (*ptr != '\0' && currentJson.count < MAX_FIELDS) {
         
-        if (colon) {
-            *colon = '\0'; // 把冒号变成结束符，切断
-            
-            // 存 Key (冒号左边)
-            strncpy(currentJson.keys[currentJson.count], token, MAX_LEN - 1);
-            
-            // 存 Value (冒号右边)
-            // 简单的处理：如果值里面有引号，可以手动跳过
-            char *valStart = colon + 1;
-            if (*valStart == '"') valStart++; // 跳过开头的引号
-            
-            // 处理结尾的引号 (如果有)
-            char *valEnd = strchr(valStart, '"');
-            if (valEnd) *valEnd = '\0'; 
+        // 1. 跳过前导空格 (Trim leading spaces)
+        while (*ptr == ' ' || *ptr == '\n' || *ptr == '\r') ptr++;
+        if (*ptr == '\0') break; // 如果全是空格，结束
 
-            strncpy(currentJson.values[currentJson.count], valStart, MAX_LEN - 1);
+        // 2. 找冒号 (Key 的结束)
+        char *colon = strchr(ptr, ':');
+        if (!colon) break; // 没找到冒号，格式不对，退出
+
+        // 3. 提取 Key
+        int keyLen = colon - ptr;
+        if (keyLen >= MAX_LEN) keyLen = MAX_LEN - 1;
+        strncpy(currentJson.keys[currentJson.count], ptr, keyLen);
+        currentJson.keys[currentJson.count][keyLen] = '\0';
+
+        // 4. 定位 Value 的起点
+        char *valStart = colon + 1;
+        char *valEnd = NULL;
+        int isQuoted = 0;
+
+        if (*valStart == '"') {
+            // --- 情况 A: 值被引号包围 (例如 msg:" hello world") ---
+            isQuoted = 1;
+            valStart++; // 跳过开头的引号
+            valEnd = strchr(valStart, '"'); // 找下一个引号
             
-            currentJson.count++;
+            if (!valEnd) {
+                // 如果没找到结束引号，就读到行尾
+                valEnd = valStart + strlen(valStart);
+            }
+        } else {
+            // --- 情况 B: 普通值，读到空格为止 (例如 time:1228) ---
+            // 找下一个空格
+            valEnd = strchr(valStart, ' ');
+            
+            // 如果没找到空格，说明是最后一个字段 (可能带换行符)
+            if (!valEnd) {
+                valEnd = valStart + strlen(valStart);
+            }
         }
+
+        // 5. 提取 Value
+        int valLen = valEnd - valStart;
         
-        token = strtok(NULL, " ");
+        // 去掉 Value 里的换行符 (针对最后一个字段如 myName:DAVE\n)
+        while (valLen > 0 && (valStart[valLen-1] == '\n' || valStart[valLen-1] == '\r')) {
+            valLen--;
+        }
+
+        if (valLen >= MAX_LEN) valLen = MAX_LEN - 1;
+        strncpy(currentJson.values[currentJson.count], valStart, valLen);
+        currentJson.values[currentJson.count][valLen] = '\0';
+
+        // 6. 成功存入一组
+        currentJson.count++;
+
+        // 7. 移动指针，准备下一轮
+        if (isQuoted) {
+            ptr = valEnd + 1; // 跳过结束引号
+        } else {
+            ptr = valEnd; // 从刚才停下的地方继续
+        }
     }
-    
+
     return currentJson;
 }
 
@@ -124,7 +157,7 @@ int main(int argc, char *argv[])
     json currentStruct = linetojson(lineFromFile);
     jsontostring(&currentStruct,buffer);
     printf ("I am sending '%s'", lineFromFile);
-    printf("生成的 JSON 是:\n%s\n", buffer);
+    printf("parsed JSON data:\n%s\n", buffer);
     printf ("the length of the string is %lu bytes\n", strlen(lineFromFile));
     sendStuff(buffer, sd, server_address);
   }
